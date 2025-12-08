@@ -1,5 +1,16 @@
 [Unit]
 Description=Cloudflare DDNS Service
+After=network.target
 
 [Service]
-ExecStart=/usr/bin/node /home/serverkb/DynamicDNS/index.js
+WorkingDirectory=/home/serverkb/DynamicDNS
+ExecStart=/usr/bin/npm start
+Restart=always
+RestartSec=10
+Environment=NODE_ENV=production
+
+# Si usas nvm o node instalado por el usuario, añade:
+# Environment=PATH=/usr/bin:/usr/local/bin
+
+[Install]
+WantedBy=multi-user.target
