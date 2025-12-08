@@ -2,4 +2,4 @@
 Description=Cloudflare DDNS Service
 
 [Service]
-ExecStart=/usr/bin/node /home/serverkb/dynamicDNS/index.js
+ExecStart=/usr/bin/node /home/serverkb/DynamicDNS/index.js
