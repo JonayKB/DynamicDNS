@@ -3,16 +3,16 @@ require("dotenv").config();
 
 const CLOUDFLARE_API_TOKEN = process.env.CLOUDFLARE_API_TOKEN;
 const ZONE_ID = process.env.ZONE_ID;
-const RECORD_ID = process.env.RECORD_ID;
+const RECORD_IDS = process.env.RECORD_IDS.split(",");
 
 async function getPublicIP() {
   const res = await axios.get("https://checkip.amazonaws.com");
   return res.data;
 }
 
-async function getDNSRecord() {
+async function getDNSRecord(recordId) {
   const res = await axios.get(
-    `https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records/${RECORD_ID}`,
+    `https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records/${recordId}`,
     {
       headers: {
         "Authorization": `Bearer ${CLOUDFLARE_API_TOKEN}`,
@@ -26,7 +26,7 @@ async function getDNSRecord() {
 
 async function updateDNS(ip, record) {
   await axios.put(
-    `https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records/${RECORD_ID}`,
+    `https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records/${record.id}`,
     {
       type: record.type,
       name: record.name,
@@ -46,11 +46,14 @@ async function updateDNS(ip, record) {
 async function run() {
   try {
     const publicIP = await getPublicIP();
-    const dnsRecord = await getDNSRecord();
+    const dnsRecord = await getDNSRecord(RECORD_IDS[0]);
 
     if (dnsRecord.content.trim() != publicIP.trim()) {
       console.log("⚠️  IP has changed, updating DNS…");
-      await updateDNS(publicIP, dnsRecord);
+      RECORD_IDS.forEach(async (recordId) => {
+        const record = await getDNSRecord(recordId);
+        await updateDNS(publicIP, record);
+      });
       console.log("✅ ¡DNS updated!");
     }
 
