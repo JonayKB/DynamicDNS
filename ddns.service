@@ -4,13 +4,9 @@ After=network.target
 
 [Service]
 WorkingDirectory=/home/serverkb/DynamicDNS
-ExecStart=/usr/bin/npm start
+ExecStart=./target/release/dynamic_dns
 Restart=never
 RestartSec=10
-Environment=NODE_ENV=production
-
-# Si usas nvm o node instalado por el usuario, añade:
-# Environment=PATH=/usr/bin:/usr/local/bin
 
 [Install]
 WantedBy=multi-user.target
