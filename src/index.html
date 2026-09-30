@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CF DDNS</title>
+<style>
+  :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+  th, td { text-align: left; padding: .4rem; border-bottom: 1px solid #8884; font-size: .9rem; }
+  form { display: grid; gap: .5rem; max-width: 520px; }
+  input { padding: .4rem; }
+  button { padding: .4rem .8rem; cursor: pointer; }
+  .muted { opacity: .7; font-size: .85rem; }
+</style>
+</head>
+<body>
+<h1>Cloudflare DDNS</h1>
+<p class="muted">IP pública: <b id="ip">—</b></p>
+<button id="run">Actualizar ahora</button>
+
+<table>
+  <thead><tr><th>Nombre</th><th>Token</th><th>Zona</th><th>Registros</th><th>Estado</th><th></th></tr></thead>
+  <tbody id="rows"></tbody>
+</table>
+
+<h2 id="title">Añadir servicio</h2>
+<form id="form">
+  <input name="name" placeholder="Nombre (ej. jonaykb.com)" required>
+  <input name="api_token" type="password" placeholder="API token de Cloudflare" autocomplete="off">
+  <input name="zone_id" placeholder="Zone ID" required>
+  <input name="record_ids" placeholder="Record IDs separados por coma" required>
+  <label><input name="enabled" type="checkbox" checked> Activo</label>
+  <button type="submit">Guardar</button>
+</form>
+<p class="muted">Al editar, deja el token vacío para conservar el guardado.</p>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const form = $('#form');
+
+function cell(tr, text) { const td = document.createElement('td'); td.textContent = text; tr.appendChild(td); return td; }
+
+async function load() {
+  const data = await (await fetch('/api/services')).json();
+  $('#ip').textContent = data.last_ip || '—';
+  const rows = $('#rows'); rows.replaceChildren();
+  for (const s of data.services) {
+    const tr = document.createElement('tr');
+    cell(tr, s.name + (s.enabled ? '' : ' (off)'));
+    cell(tr, s.token_hint);
+    cell(tr, s.zone_id);
+    cell(tr, s.record_ids.join(', '));
+    cell(tr, s.status);
+    const td = document.createElement('td');
+    const edit = document.createElement('button'); edit.textContent = 'Editar';
+    edit.onclick = () => {
+      form.name.value = s.name; form.api_token.value = '';
+      form.zone_id.value = s.zone_id; form.record_ids.value = s.record_ids.join(',');
+      form.enabled.checked = s.enabled; $('#title').textContent = 'Editar ' + s.name;
+    };
+    const del = document.createElement('button'); del.textContent = 'Borrar';
+    del.onclick = async () => {
+      if (!confirm('¿Borrar ' + s.name + '?')) return;
+      await fetch('/api/services/' + encodeURIComponent(s.name), { method: 'DELETE' });
+      load();
+    };
+    td.append(edit, ' ', del); tr.appendChild(td); rows.appendChild(tr);
+  }
+}
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = new FormData(form);
+  const res = await fetch('/api/services', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name: f.get('name'), api_token: f.get('api_token') || '',
+      zone_id: f.get('zone_id'), enabled: form.enabled.checked,
+      record_ids: String(f.get('record_ids')).split(',')
+    })
+  });
+  if (!res.ok) { alert(await res.text()); return; }
+  form.reset(); form.enabled.checked = true; $('#title').textContent = 'Añadir servicio';
+  load();
+});
+
+$('#run').onclick = async () => {
+  const res = await fetch('/api/run', { method: 'POST' });
+  if (!res.ok) alert(await res.text());
+  load();
+};
+
+load(); setInterval(load, 15000);
+</script>
+</body>
+</html>
